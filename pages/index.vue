@@ -1,39 +1,43 @@
 <script setup>
 import { ref } from "vue";
+import AutoComplete from "primevue/autocomplete";
+import Button from "primevue/button";
 import { useGoogleMaps } from "~/composables/useGoogleMaps";
 import { useFareCalculator } from "~/composables/useFareCalculator";
 
-const { getPlacePredictions, getPlaceDetails } = useGoogleMaps();
-const { calculateDistance, calculateFare } = useFareCalculator();
+const { getPlacePredictions, getPlaceDetails } = useGoogleMaps(); // Use Google Maps composable
+const { calculateDistance, calculateFare } = useFareCalculator(); // Use fare calculator composable
 
-const pickup = ref("");
-const dropOff = ref("");
-const pickupSuggestions = ref([]);
-const dropOffSuggestions = ref([]);
-const fareResult = ref(null);
+const pickup = ref(""); // Store pickup location
+const dropOff = ref(""); // Store drop-off location
+const pickupSuggestions = ref([]); // Store pickup suggestions
+const dropOffSuggestions = ref([]); // Store drop-off suggestions
+const fareResult = ref(null); // Store fare calculation result
 
+// Fetch pickup location suggestions
 const searchPickup = async (event) => {
-  pickupSuggestions.value = await getPlacePredictions(event.target.value);
+  const predictions = await getPlacePredictions(event.query); // Fetch predictions
+  pickupSuggestions.value = predictions.map((prediction) => prediction.description); // Map to descriptions
 };
 
 const searchDropOff = async (event) => {
-  dropOffSuggestions.value = await getPlacePredictions(event.target.value);
+  const predictions = await getPlacePredictions(event.query); // Fetch predictions
+  dropOffSuggestions.value = predictions.map((prediction) => prediction.description); // Map to descriptions
 };
-
-const selectSuggestion = (value, type) => {
-  if (type === "pickup") pickup.value = value;
-  if (type === "dropOff") dropOff.value = value;
-  pickupSuggestions.value = [];
-  dropOffSuggestions.value = [];
-};
-
 const getFare = async () => {
-  const pickupDetails = await getPlaceDetails(pickup.value.place_id);
-  const dropOffDetails = await getPlaceDetails(dropOff.value.place_id);
+  // Fetch full place details for pickup and drop-off
+  const pickupPredictions = await getPlacePredictions(pickup.value);
+  const dropOffPredictions = await getPlacePredictions(dropOff.value);
 
+  // Get the first matching prediction (you can add error handling here)
+  const pickupDetails = await getPlaceDetails(pickupPredictions[0].place_id);
+  const dropOffDetails = await getPlaceDetails(dropOffPredictions[0].place_id);
+
+  // Calculate distance and fare
   const distance = calculateDistance(pickupDetails, dropOffDetails);
   const fare = calculateFare(distance);
 
+  // Display the result
   fareResult.value = {
     distance: distance.toFixed(2),
     fare: fare.toFixed(2),
@@ -42,162 +46,34 @@ const getFare = async () => {
 </script>
 
 <template>
-  <div class="container">
-    <h1>Fare Calculator</h1>
-    <div class="form-group">
-      <label for="pickup">Pickup Location</label>
-      <input
-        id="pickup"
-        type="text"
+  <div
+    class="flex flex-col items-center justify-center space-y-5 h-screen mx-auto max-w-5xl p-10"
+  >
+    <h1 class="text-2xl">Calculate Fare</h1>
+    <div class="flex flex-col">
+      <label>Pickup Location</label>
+      <AutoComplete
         v-model="pickup"
-        @input="searchPickup"
+        :suggestions="pickupSuggestions"
+        @complete="searchPickup"
+        size="larger"
         placeholder="Enter pickup location"
-        autocomplete="off"
       />
-      <ul v-if="pickupSuggestions.length" class="suggestions">
-        <li
-          v-for="suggestion in pickupSuggestions"
-          :key="suggestion.place_id"
-          @click="selectSuggestion(suggestion, 'pickup')"
-        >
-          {{ suggestion.description }}
-        </li>
-      </ul>
     </div>
-
-    <div class="form-group">
-      <label for="dropOff">Drop-off Location</label>
-      <input
-        id="dropOff"
-        type="text"
+    <div class="flex flex-col">
+      <label>Drop-off Location</label>
+      <AutoComplete
         v-model="dropOff"
-        @input="searchDropOff"
+        :suggestions="dropOffSuggestions"
+        @complete="searchDropOff"
+        size="larger"
         placeholder="Enter drop-off location"
-        autocomplete="off"
       />
-      <ul v-if="dropOffSuggestions.length" class="suggestions">
-        <li
-          v-for="suggestion in dropOffSuggestions"
-          :key="suggestion.place_id"
-          @click="selectSuggestion(suggestion, 'dropOff')"
-        >
-          {{ suggestion.description }}
-        </li>
-      </ul>
     </div>
-
-    <button @click="getFare">Get Fare</button>
-
-    <div v-if="fareResult" class="fare-result">
-      <p><strong>Distance:</strong> {{ fareResult.distance }} km</p>
-      <p><strong>Fare:</strong> ${{ fareResult.fare }}</p>
+    <Button label="Get Fare" @click="getFare" />
+    <div v-if="fareResult">
+      <p>Distance: {{ fareResult.distance }} km</p>
+      <p>Fare: ${{ fareResult.fare }}</p>
     </div>
   </div>
 </template>
-<style scoped>
-/* General container styling */
-.container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: "Arial", sans-serif;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Heading */
-h1 {
-  font-size: 1.8rem;
-  color: #333;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-/* Form group styling */
-.form-group {
-  margin-bottom: 20px;
-}
-
-label {
-  font-size: 1rem;
-  font-weight: bold;
-  color: #555;
-  display: block;
-  margin-bottom: 8px;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  transition: border-color 0.3s ease;
-}
-
-input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-  outline: none;
-}
-
-/* Suggestions dropdown styling */
-.suggestions {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  max-height: 150px;
-  overflow-y: auto;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.suggestions li {
-  padding: 10px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #333;
-  transition: background-color 0.2s ease;
-}
-
-.suggestions li:hover {
-  background-color: #f1f1f1;
-}
-
-/* Button styling */
-button {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  font-size: 1rem;
-  background-color: #007bff;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-/* Fare result styling */
-.fare-result {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  text-align: left;
-  color: #333;
-}
-
-.fare-result p {
-  margin: 5px 0;
-  font-size: 1rem;
-}
-</style>
