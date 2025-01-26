@@ -1,79 +1,91 @@
 <script setup>
-import { ref } from "vue";
-import AutoComplete from "primevue/autocomplete";
-import Button from "primevue/button";
-import { useGoogleMaps } from "~/composables/useGoogleMaps";
-import { useFareCalculator } from "~/composables/useFareCalculator";
+import { ref } from 'vue';
+import AutoComplete from 'primevue/autocomplete';
+import Button from 'primevue/button';
+import Dropdown from 'primevue/dropdown';
+import InputNumber from 'primevue/inputnumber';
+import { useGoogleMaps } from '~/composables/useGoogleMaps';
+import { useFareCalculator } from '~/composables/useFareCalculator';
+import { useFareSettings } from '~/composables/useFareSettings';
 
-const { getPlacePredictions, getPlaceDetails } = useGoogleMaps(); // Use Google Maps composable
-const { calculateDistance, calculateFare } = useFareCalculator(); // Use fare calculator composable
+const { getPlacePredictions, getPlaceDetails } = useGoogleMaps();
+const { calculateDistance, calculateFare } = useFareCalculator();
+const { currency, costPerKm, currencies } = useFareSettings();
 
-const pickup = ref(""); // Store pickup location
-const dropOff = ref(""); // Store drop-off location
-const pickupSuggestions = ref([]); // Store pickup suggestions
-const dropOffSuggestions = ref([]); // Store drop-off suggestions
-const fareResult = ref(null); // Store fare calculation result
+const pickup = ref('');
+const dropOff = ref('');
+const pickupSuggestions = ref([]);
+const dropOffSuggestions = ref([]);
+const fareResult = ref(null);
 
-// Fetch pickup location suggestions
 const searchPickup = async (event) => {
-  const predictions = await getPlacePredictions(event.query); // Fetch predictions
-  pickupSuggestions.value = predictions.map((prediction) => prediction.description); // Map to descriptions
+  const predictions = await getPlacePredictions(event.query);
+  pickupSuggestions.value = predictions.map((prediction) => prediction.description);
 };
 
 const searchDropOff = async (event) => {
-  const predictions = await getPlacePredictions(event.query); // Fetch predictions
-  dropOffSuggestions.value = predictions.map((prediction) => prediction.description); // Map to descriptions
+  const predictions = await getPlacePredictions(event.query);
+  dropOffSuggestions.value = predictions.map((prediction) => prediction.description);
 };
+
 const getFare = async () => {
-  // Fetch full place details for pickup and drop-off
   const pickupPredictions = await getPlacePredictions(pickup.value);
   const dropOffPredictions = await getPlacePredictions(dropOff.value);
 
-  // Get the first matching prediction (you can add error handling here)
   const pickupDetails = await getPlaceDetails(pickupPredictions[0].place_id);
   const dropOffDetails = await getPlaceDetails(dropOffPredictions[0].place_id);
 
-  // Calculate distance and fare
   const distance = calculateDistance(pickupDetails, dropOffDetails);
-  const fare = calculateFare(distance);
-
-  // Display the result
-  fareResult.value = {
-    distance: distance.toFixed(2),
-    fare: fare.toFixed(2),
-  };
+  fareResult.value = calculateFare(distance, costPerKm.value, currency.value);
 };
 </script>
 
 <template>
-  <div
-    class="flex flex-col items-center justify-center space-y-5 h-screen mx-auto max-w-5xl p-10"
-  >
-    <h1 class="text-2xl">Calculate Fare</h1>
-    <div class="flex flex-col">
+  <div>
+    <h1>Calculate Fare</h1>
+    <div>
       <label>Pickup Location</label>
       <AutoComplete
         v-model="pickup"
         :suggestions="pickupSuggestions"
         @complete="searchPickup"
-        size="larger"
         placeholder="Enter pickup location"
       />
     </div>
-    <div class="flex flex-col">
+    <div>
       <label>Drop-off Location</label>
       <AutoComplete
         v-model="dropOff"
         :suggestions="dropOffSuggestions"
         @complete="searchDropOff"
-        size="larger"
         placeholder="Enter drop-off location"
+      />
+    </div>
+    <div>
+      <label>Currency</label>
+      <Dropdown
+        v-model="currency"
+        :options="currencies"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select Currency"
+      />
+    </div>
+    <div>
+      <label>Cost Per Km</label>
+      <InputNumber
+        v-model="costPerKm"
+        mode="decimal"
+        :min="0.1"
+        :max="10"
+        :step="0.1"
+        placeholder="Enter cost per km"
       />
     </div>
     <Button label="Get Fare" @click="getFare" />
     <div v-if="fareResult">
       <p>Distance: {{ fareResult.distance }} km</p>
-      <p>Fare: ${{ fareResult.fare }}</p>
+      <p>Fare: {{ fareResult.currency }} {{ fareResult.fare }}</p>
     </div>
   </div>
 </template>
