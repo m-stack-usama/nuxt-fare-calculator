@@ -22,11 +22,14 @@ export const useFareCalculator = () => {
     return distance;
   };
 
-  // Calculate fare based on distance
-  const calculateFare = (distance) => {
-    const baseFare = 2.5; // Base fare in dollars
-    const ratePerKm = 1.5; // Rate per km
-    return baseFare + distance * ratePerKm; // Total fare
+  // Calculate fare based on distance, cost per km, and currency
+  const calculateFare = (distance, costPerKm, currency) => {
+    const fare = distance * costPerKm; // Calculate fare
+    return {
+      distance: distance.toFixed(2),
+      fare: fare.toFixed(2),
+      currency,
+    };
   };
 
   return {
