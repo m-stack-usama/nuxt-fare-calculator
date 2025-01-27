@@ -88,7 +88,7 @@ const getFare = async () => {
       />
     </div>
     <Button label="Get Fare" @click="getFare" />
-    <div class="rounded-md bg-gray-200 p-5">
+    <div v-if="fareResult"  class="rounded-md bg-gray-200 p-5">
       <p class="text-gray">
         Distance: <span class="font-bold">{{ fareResult.distance }} km </span>
       </p>
